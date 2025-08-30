@@ -1,37 +1,58 @@
+import { db } from '../db';
+import { budgetRequestsTable } from '../db/schema';
 import { type UpdateBudgetRequestInput, type BudgetRequest } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const updateBudgetRequest = async (input: UpdateBudgetRequestInput): Promise<BudgetRequest> => {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is updating an existing budget request in the database.
-  // It should:
-  // 1. Validate the input data
-  // 2. Check if the budget request exists
-  // 3. Update only the provided fields
-  // 4. Update the updated_at timestamp
-  // 5. Return the updated budget request
-  // 6. Handle cases where the request is not found or cannot be updated due to status
-  
-  return Promise.resolve({
-    id: input.id,
-    department_name: input.department_name || 'Placeholder Department',
-    department_code: input.department_code || null,
-    contact_person: input.contact_person || 'Placeholder Contact',
-    contact_email: input.contact_email || 'placeholder@example.com',
-    contact_phone: input.contact_phone || null,
-    fiscal_year: input.fiscal_year || 2024,
-    request_title: input.request_title || 'Placeholder Title',
-    request_description: input.request_description || 'Placeholder Description',
-    total_amount: input.total_amount || 0,
-    priority_level: input.priority_level || 'medium',
-    justification: input.justification || 'Placeholder Justification',
-    expected_outcomes: input.expected_outcomes || 'Placeholder Outcomes',
-    timeline_start: input.timeline_start || null,
-    timeline_end: input.timeline_end || null,
-    status: input.status || 'draft',
-    submitted_at: null,
-    reviewed_at: null,
-    reviewer_notes: input.reviewer_notes || null,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as BudgetRequest);
+  try {
+    // Check if the budget request exists
+    const existingRequest = await db.select()
+      .from(budgetRequestsTable)
+      .where(eq(budgetRequestsTable.id, input.id))
+      .execute();
+
+    if (existingRequest.length === 0) {
+      throw new Error(`Budget request with ID ${input.id} not found`);
+    }
+
+    // Prepare update data - only include fields that are provided
+    const updateData: Record<string, any> = {
+      updated_at: new Date()
+    };
+
+    // Add only the fields that are provided in the input
+    if (input.department_name !== undefined) updateData['department_name'] = input.department_name;
+    if (input.department_code !== undefined) updateData['department_code'] = input.department_code;
+    if (input.contact_person !== undefined) updateData['contact_person'] = input.contact_person;
+    if (input.contact_email !== undefined) updateData['contact_email'] = input.contact_email;
+    if (input.contact_phone !== undefined) updateData['contact_phone'] = input.contact_phone;
+    if (input.fiscal_year !== undefined) updateData['fiscal_year'] = input.fiscal_year;
+    if (input.request_title !== undefined) updateData['request_title'] = input.request_title;
+    if (input.request_description !== undefined) updateData['request_description'] = input.request_description;
+    if (input.total_amount !== undefined) updateData['total_amount'] = input.total_amount.toString(); // Convert to string for numeric column
+    if (input.priority_level !== undefined) updateData['priority_level'] = input.priority_level;
+    if (input.justification !== undefined) updateData['justification'] = input.justification;
+    if (input.expected_outcomes !== undefined) updateData['expected_outcomes'] = input.expected_outcomes;
+    if (input.timeline_start !== undefined) updateData['timeline_start'] = input.timeline_start;
+    if (input.timeline_end !== undefined) updateData['timeline_end'] = input.timeline_end;
+    if (input.status !== undefined) updateData['status'] = input.status;
+    if (input.reviewer_notes !== undefined) updateData['reviewer_notes'] = input.reviewer_notes;
+
+    // Update the budget request
+    const result = await db.update(budgetRequestsTable)
+      .set(updateData)
+      .where(eq(budgetRequestsTable.id, input.id))
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const updatedRequest = result[0];
+    return {
+      ...updatedRequest,
+      total_amount: parseFloat(updatedRequest.total_amount) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Budget request update failed:', error);
+    throw error;
+  }
 };

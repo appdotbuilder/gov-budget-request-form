@@ -1,13 +1,28 @@
+import { db } from '../db';
+import { budgetRequestsTable } from '../db/schema';
 import { type BudgetRequest } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const getBudgetRequestById = async (id: number): Promise<BudgetRequest | null> => {
-  // This is a placeholder declaration! Real code should be implemented here.
-  // The goal of this handler is fetching a single budget request by ID from the database.
-  // It should:
-  // 1. Query the database for the budget request with the given ID
-  // 2. Include related budget items and file uploads
-  // 3. Return the budget request or null if not found
-  // 4. Handle any database errors appropriately
-  
-  return Promise.resolve(null);
+  try {
+    // Query the database for the budget request with the given ID
+    const results = await db.select()
+      .from(budgetRequestsTable)
+      .where(eq(budgetRequestsTable.id, id))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const budgetRequest = results[0];
+    return {
+      ...budgetRequest,
+      total_amount: parseFloat(budgetRequest.total_amount) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Failed to fetch budget request by ID:', error);
+    throw error;
+  }
 };
